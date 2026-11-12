@@ -56,12 +56,13 @@ export async function GET(request: NextRequest) {
       },
       note: 'The test order was created in Sandbox state. PayPal requires explicit user approval before capturing payment.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('PayPal test endpoint error:', error);
+    const message = error instanceof Error ? error.message : 'PayPal Sandbox integration test failed';
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'PayPal Sandbox integration test failed',
+        error: message,
         troubleshooting: [
           'Verify your Client ID and Client Secret in .env.local.',
           'Ensure your application is configured as "Sandbox" in the PayPal Developer Dashboard.',

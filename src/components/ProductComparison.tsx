@@ -3,9 +3,9 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { ProductRecommendation } from '@/types';
+import { Product, ProductRecommendation } from '@/types';
 import SelectedProductSummary from './SelectedProductSummary';
 import CurrencyDisplay from './CurrencyDisplay';
 import {
@@ -21,41 +21,45 @@ import {
 
 export default function ProductComparison() {
   const { state, selectProduct, dispatch } = useApp();
-  const [comparisonProducts, setComparisonProducts] = useState<ProductRecommendation[]>([]);
+  const [fallbackProducts, setFallbackProducts] = useState<ProductRecommendation[]>([]);
 
-  useEffect(() => {
-    // Collect products from recent messages or fallback to top recommendations
+  const messageProducts = useMemo(() => {
     const found: ProductRecommendation[] = [];
     for (const msg of state.messages) {
       if (msg.products && msg.products.length > 0) {
         found.push(...msg.products);
       }
     }
-
-    if (found.length > 0) {
-      // Deduplicate by ID
-      const unique = Array.from(new Map(found.map((p) => [p.product.id, p])).values());
-      setComparisonProducts(unique.slice(0, 3));
-    } else {
-      // Load top 3 from product search API
-      fetch('/api/products/search?q=hiking')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.data) {
-            const mapped: ProductRecommendation[] = data.data.slice(0, 3).map((p: any) => ({
-              product: p,
-              matchScore: 90,
-              reasoning: `${p.name} is a versatile selection with verified ratings.`,
-              advantages: ['High quality build', 'In Stock', 'Direct seller warranty'],
-              limitations: ['Limited color options'],
-              trustWarnings: [],
-            }));
-            setComparisonProducts(mapped);
-          }
-        })
-        .catch(console.error);
-    }
+    if (found.length === 0) return [];
+    const unique = Array.from(new Map(found.map((p) => [p.product.id, p])).values());
+    return unique.slice(0, 3);
   }, [state.messages]);
+
+  useEffect(() => {
+    if (messageProducts.length > 0) return;
+    let cancelled = false;
+    fetch('/api/products/search?q=hiking')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success && data.data) {
+          const mapped: ProductRecommendation[] = data.data.slice(0, 3).map((p: Product) => ({
+            product: p,
+            matchScore: 90,
+            reasoning: `${p.name} is a versatile selection with verified ratings.`,
+            advantages: ['High quality build', 'In Stock', 'Direct seller warranty'],
+            limitations: ['Limited color options'],
+            trustWarnings: [],
+          }));
+          setFallbackProducts(mapped);
+        }
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, [messageProducts.length]);
+
+  const comparisonProducts = messageProducts.length > 0 ? messageProducts : fallbackProducts;
 
   if (comparisonProducts.length === 0) {
     return (

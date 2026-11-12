@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
     const maxPrice = typeof body.maxPrice === 'number' ? body.maxPrice : undefined;
 
     return handleChannel3Search(query, maxPrice);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Invalid request body';
     return NextResponse.json(
-      { success: false, error: err.message || 'Invalid request body' },
+      { success: false, error: message },
       { status: 400 }
     );
   }
@@ -82,12 +83,13 @@ async function handleChannel3Search(query: string, maxPrice?: number) {
         brands: Array.from(new Set(products.map((p) => p.brand))),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Channel3 test endpoint error:', error);
+    const message = error instanceof Error ? error.message : 'Channel3 API call failed';
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Channel3 API call failed',
+        error: message,
         apiEndpoint: 'https://api.trychannel3.com/v1/search',
       },
       { status: 500 }

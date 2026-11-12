@@ -18,22 +18,27 @@ export default function BudgetSettings() {
   const { state, saveBudget, loadBudget, loadSpendingSummary, formatPrice } = useApp();
   const { budget, userPreferences } = state;
 
-  const [maxPurchase, setMaxPurchase] = useState<number>(100);
-  const [dailyLimit, setDailyLimit] = useState<number>(200);
+  const activeCurrency = (userPreferences?.currencyCode || budget?.currency || 'USD').toUpperCase();
+  const currencySymbol = userPreferences?.country?.currencySymbol || '$';
+
+  const [maxPurchase, setMaxPurchase] = useState<number>(budget?.maxPurchaseAmount ?? 100);
+  const [dailyLimit, setDailyLimit] = useState<number>(budget?.dailySpendingLimit ?? 200);
+  const [syncedBudget, setSyncedBudget] = useState(budget);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    loadBudget();
-  }, [loadBudget]);
-
-  useEffect(() => {
+  if (budget !== syncedBudget) {
+    setSyncedBudget(budget);
     if (budget) {
       setMaxPurchase(budget.maxPurchaseAmount);
       setDailyLimit(budget.dailySpendingLimit);
     }
-  }, [budget]);
+  }
+
+  useEffect(() => {
+    loadBudget();
+  }, [loadBudget]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -41,11 +46,11 @@ export default function BudgetSettings() {
     setSaveSuccess(false);
 
     if (maxPurchase <= 0) {
-      setErrorMessage('Maximum purchase amount must be greater than $0.');
+      setErrorMessage(`Maximum purchase amount must be greater than ${currencySymbol}0.`);
       return;
     }
     if (dailyLimit <= 0) {
-      setErrorMessage('Daily spending limit must be greater than $0.');
+      setErrorMessage(`Daily spending limit must be greater than ${currencySymbol}0.`);
       return;
     }
     if (maxPurchase > dailyLimit) {
@@ -55,7 +60,7 @@ export default function BudgetSettings() {
 
     setIsSaving(true);
     try {
-      await saveBudget(maxPurchase, dailyLimit);
+      await saveBudget(maxPurchase, dailyLimit, activeCurrency);
       await loadSpendingSummary();
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
@@ -65,6 +70,25 @@ export default function BudgetSettings() {
       setIsSaving(false);
     }
   }
+
+  const presets =
+    activeCurrency === 'INR'
+      ? [
+          { label: '🛡️ Conservative', max: 1500, daily: 3000 },
+          { label: '⚖️ Balanced (Recommended)', max: 5000, daily: 10000 },
+          { label: '🚀 Flexible', max: 15000, daily: 30000 },
+        ]
+      : activeCurrency === 'JPY'
+      ? [
+          { label: '🛡️ Conservative', max: 5000, daily: 10000 },
+          { label: '⚖️ Balanced (Recommended)', max: 15000, daily: 30000 },
+          { label: '🚀 Flexible', max: 40000, daily: 80000 },
+        ]
+      : [
+          { label: '🛡️ Conservative', max: 50, daily: 100 },
+          { label: '⚖️ Balanced (Recommended)', max: 100, daily: 200 },
+          { label: '🚀 Flexible', max: 250, daily: 500 },
+        ];
 
   function applyPreset(presetMax: number, presetDaily: number) {
     setMaxPurchase(presetMax);
@@ -81,7 +105,7 @@ export default function BudgetSettings() {
           Smart Budget & Spending Controls
         </h2>
         <p className="text-xs text-slate-500 mt-1">
-          Enforced server-side before any PayPal Sandbox order is created or authorized.
+          Enforced server-side before any payment order is created or authorized.
         </p>
       </div>
 
@@ -90,45 +114,30 @@ export default function BudgetSettings() {
         {/* Preset Profiles */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
-            Quick Budget Profiles
+            Quick Budget Profiles ({activeCurrency})
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => applyPreset(50, 100)}
-              className="p-3.5 rounded-2xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left transition-all group"
-            >
-              <div className="font-bold text-slate-900 text-xs group-hover:text-blue-600">
-                🛡️ Conservative
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1">
-                $50 max item / $100 daily limit
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset(100, 200)}
-              className="p-3.5 rounded-2xl border border-blue-500 bg-blue-50/40 text-left transition-all"
-            >
-              <div className="font-bold text-blue-900 text-xs">⚖️ Balanced (Recommended)</div>
-              <div className="text-[11px] text-blue-700 mt-1">
-                $100 max item / $200 daily limit
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset(250, 500)}
-              className="p-3.5 rounded-2xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left transition-all group"
-            >
-              <div className="font-bold text-slate-900 text-xs group-hover:text-blue-600">
-                🚀 Flexible
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1">
-                $250 max item / $500 daily limit
-              </div>
-            </button>
+            {presets.map((p, i) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => applyPreset(p.max, p.daily)}
+                className={`p-3.5 rounded-2xl border text-left transition-all group ${
+                  i === 1
+                    ? 'border-blue-500 bg-blue-50/40'
+                    : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50/50'
+                }`}
+              >
+                <div className="font-bold text-slate-900 text-xs group-hover:text-blue-600">
+                  {p.label}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  {currencySymbol}
+                  {p.max.toLocaleString()} max item / {currencySymbol}
+                  {p.daily.toLocaleString()} daily limit
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -138,64 +147,59 @@ export default function BudgetSettings() {
             {/* Input 1: Maximum Item Purchase */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>Maximum Single Purchase Limit</span>
+                <span>Maximum Single Purchase Limit ({activeCurrency})</span>
                 <span className="text-blue-600 font-mono">
-                  ${maxPurchase.toFixed(2)} USD
-                  {userPreferences?.currencyCode && userPreferences.currencyCode !== 'USD' && (
+                  {formatPrice(maxPurchase, false, activeCurrency)}
+                  {activeCurrency !== 'USD' && (
                     <span className="text-slate-400 font-normal ml-1">
-                      (≈ {formatPrice(maxPurchase)})
+                      (≈ {formatPrice(maxPurchase, true, activeCurrency)})
                     </span>
                   )}
                 </span>
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold">
-                  $
+                  {currencySymbol}
                 </span>
                 <input
                   type="number"
-                  min="5"
-                  max="5000"
-                  step="5"
+                  min="1"
+                  max="1000000"
+                  step={activeCurrency === 'INR' || activeCurrency === 'JPY' ? '50' : '5'}
                   value={maxPurchase}
                   onChange={(e) => setMaxPurchase(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-4 py-3 text-sm text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden transition-all"
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Any item priced higher than this amount in USD will be blocked before payment authorization.
+                Any item priced above this limit ({activeCurrency}) is blocked before payment authorization.
               </p>
             </div>
 
             {/* Input 2: Daily Spending Limit */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>Daily Spending Ceiling</span>
+                <span>Daily Spending Ceiling ({activeCurrency})</span>
                 <span className="text-indigo-600 font-mono">
-                  ${dailyLimit.toFixed(2)} USD
-                  {userPreferences?.currencyCode && userPreferences.currencyCode !== 'USD' && (
-                    <span className="text-slate-400 font-normal ml-1">
-                      (≈ {formatPrice(dailyLimit)})
-                    </span>
-                  )}
+                  {formatPrice(dailyLimit, false, activeCurrency)}
                 </span>
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold">
-                  $
+                  {currencySymbol}
                 </span>
                 <input
                   type="number"
-                  min="10"
-                  max="10000"
-                  step="10"
+                  min="1"
+                  max="5000000"
+                  step={activeCurrency === 'INR' || activeCurrency === 'JPY' ? '100' : '10'}
                   value={dailyLimit}
                   onChange={(e) => setDailyLimit(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-4 py-3 text-sm text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden transition-all"
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Sum of all captured orders within the same calendar day cannot exceed this amount.
+                Sum of captured orders within the same calendar day (normalized to {activeCurrency}) cannot exceed this limit.
               </p>
             </div>
           </div>

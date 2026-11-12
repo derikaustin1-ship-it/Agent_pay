@@ -61,7 +61,7 @@ export function getRewardsEligibility(countryCode: string, countryName?: string)
       keyRules: [
         'India accounts are restricted to export/cross-border commercial receipts',
         'PayPal Rewards points program is not operational in India',
-        'Purchases made in Sandbox will not accumulate reward points',
+        'Purchases made under demo mode will not accumulate reward points',
       ],
       disclaimer:
         'No rewards or points will be accumulated or redeemed for INR / India account profiles.',
@@ -95,7 +95,7 @@ export function getRewardsEligibility(countryCode: string, countryName?: string)
     countryName: name,
     headline: `PayPal Rewards points not supported in ${name}`,
     summary:
-      'The official PayPal Rewards program is currently unavailable in this geographic territory. Standard PayPal Sandbox checkout remains fully operational.',
+      'The official PayPal Rewards program is currently unavailable in this geographic territory. Standard PayPal checkout remains operational.',
     officialTermsUrl: PAYPAL_OFFICIAL_REWARDS_TERMS_URL,
     supportedCurrencies: ['USD'],
     keyRules: [

@@ -329,6 +329,12 @@ export function getCountryByCode(code: string): CountryConfig {
   return found || DEFAULT_COUNTRY;
 }
 
+export function getCountryByCurrency(currencyCode: string): CountryConfig | undefined {
+  const upper = (currencyCode || '').toUpperCase();
+  if (!upper) return undefined;
+  return COUNTRIES.find((c) => c.currencyCode.toUpperCase() === upper);
+}
+
 export function isPayPalSupportedCurrency(currencyCode: string): boolean {
-  return PAYPAL_SUPPORTED_CURRENCIES.includes(currencyCode.toUpperCase() as any);
+  return (PAYPAL_SUPPORTED_CURRENCIES as readonly string[]).includes(currencyCode.toUpperCase());
 }

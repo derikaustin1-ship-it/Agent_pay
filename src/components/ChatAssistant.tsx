@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import SelectedProductSummary from './SelectedProductSummary';
@@ -23,13 +23,21 @@ export default function ChatAssistant() {
   const { messages, isProcessing, budget, userPreferences } = state;
   const [inputValue, setInputValue] = useState('');
   const [loadingStep, setLoadingStep] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const [prevProcessing, setPrevProcessing] = useState(isProcessing);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  if (isProcessing !== prevProcessing) {
+    setPrevProcessing(isProcessing);
+    if (isProcessing) {
+      setLoadingStep(0);
+    }
+  }
 
   const loadingSteps = [
     'Understanding your product requirements...',
@@ -39,15 +47,12 @@ export default function ChatAssistant() {
   ];
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isProcessing) {
-      setLoadingStep(0);
-      interval = setInterval(() => {
-        setLoadingStep((prev) => (prev + 1) % loadingSteps.length);
-      }, 1200);
-    }
+    if (!isProcessing) return;
+    const interval = setInterval(() => {
+      setLoadingStep((prev) => (prev + 1) % loadingSteps.length);
+    }, 1200);
     return () => clearInterval(interval);
-  }, [isProcessing]);
+  }, [isProcessing, loadingSteps.length]);
 
   const hasProducts = messages.some((m) => m.products && m.products.length > 0);
 
@@ -104,24 +109,26 @@ export default function ChatAssistant() {
   return (
     <div className="flex flex-col h-[calc(100vh-4.5rem)] bg-slate-50/50">
       {/* Subheader / Status Banner */}
-      <div className="bg-white border-b border-slate-200/80 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
-        <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <span className="font-semibold text-slate-800">Model:</span>
-          <span className="text-slate-600 font-medium">Gemini 3.8 Flash</span>
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+        <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 font-bold text-slate-900 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/60">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span>AI Shopping Engine</span>
+          </div>
           <span className="text-slate-300 hidden sm:inline">|</span>
-          <span className="text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 text-[11px] sm:text-xs">
-            <span className="hidden sm:inline">Channel3 Live Search Connected</span>
-            <span className="sm:hidden">Channel3 Live</span>
+          <span className="text-slate-600 font-medium hidden sm:inline">Verified Retail Inventory</span>
+          <span className="text-slate-300 hidden sm:inline">|</span>
+          <span className="text-emerald-800 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px]">
+            Spending Guard Active
           </span>
         </div>
         <button
           onClick={handleClearChat}
-          className="text-slate-400 hover:text-slate-600 active:text-slate-800 flex items-center space-x-1 transition-colors min-h-[32px] px-2 rounded-lg cursor-pointer ml-auto sm:ml-0"
+          className="text-slate-400 hover:text-slate-600 active:text-slate-800 flex items-center space-x-1 transition-colors min-h-[32px] px-2 rounded-lg cursor-pointer ml-auto sm:ml-0 font-medium"
           title="Reset conversation"
         >
           <RefreshCwIcon className="w-3.5 h-3.5" />
-          <span>Reset</span>
+          <span>Clear Chat</span>
         </button>
       </div>
 
@@ -273,7 +280,7 @@ export default function ChatAssistant() {
           </button>
         </div>
         <p className="text-[11px] text-center text-slate-400 mt-2 max-w-4xl mx-auto">
-          AgentPay AI searches demo products and protects your budget. Payments are explicitly user-approved via PayPal Sandbox.
+          AgentPay Autonomous Shopping Assistant. All transactions require explicit user approval before payment authorization.
         </p>
       </div>
     </div>

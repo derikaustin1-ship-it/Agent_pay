@@ -16,13 +16,15 @@ export default function CountrySelector() {
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>(
     userPreferences?.countryCode || DEFAULT_COUNTRY.code
   );
+  const [prevPrefCountry, setPrevPrefCountry] = useState(userPreferences?.countryCode);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
+  if (userPreferences?.countryCode !== prevPrefCountry) {
+    setPrevPrefCountry(userPreferences?.countryCode);
     if (userPreferences?.countryCode) {
       setSelectedCountryCode(userPreferences.countryCode);
     }
-  }, [userPreferences]);
+  }
 
   // Close on Escape key if user already has a saved country preference
   useEffect(() => {
@@ -190,7 +192,7 @@ export default function CountrySelector() {
               <div>
                 <span className="font-semibold">PayPal India Domestic Restriction Notice:</span>
                 <p className="mt-0.5 text-amber-800">
-                  Per RBI and PayPal India regulations, direct INR domestic merchant payments between Indian accounts are not supported. For demo testing, sandbox checkouts will execute seamlessly in USD equivalent.
+                  Per RBI and PayPal India regulations, domestic merchant payments in INR between Indian accounts are not supported. Checkouts will process securely in USD equivalent based on live currency conversion rates.
                 </p>
               </div>
             </div>
@@ -202,7 +204,7 @@ export default function CountrySelector() {
               <div>
                 <span className="font-semibold">Checkout Currency Information:</span>
                 <p className="mt-0.5 text-blue-800">
-                  {selectedCountry.currencyCode} is supported for local display and price comparisons. PayPal Sandbox checkout authorization will be processed in USD.
+                  {selectedCountry.currencyCode} is supported for local display and price comparisons. Checkout authorization will be processed securely in USD equivalent.
                 </p>
               </div>
             </div>

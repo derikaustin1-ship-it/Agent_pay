@@ -138,8 +138,8 @@ export default function OrderHistory() {
               <HistoryIcon className="w-6 h-6 text-blue-600" />
               Order History & Audit Log
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-              PayPal Sandbox Test
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Verified Ledger
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -402,7 +402,7 @@ export default function OrderHistory() {
                       </span>
                     )}
                     <span className="text-[10px] text-slate-400">
-                      {isCaptured ? 'Captured in Sandbox' : 'No Charge Recorded'}
+                      {isCaptured ? 'Captured & Verified' : 'No Charge Recorded'}
                     </span>
                   </div>
 

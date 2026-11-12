@@ -1,6 +1,6 @@
 // src/components/Sidebar.tsx
-// Fintech dashboard sidebar with navigation, brand identity, live budget status,
-// and fully responsive mobile drawer with backdrop overlay and close controls.
+// Modern fintech dashboard sidebar with sleek navigation, brand identity, live budget status,
+// and fully responsive mobile drawer.
 
 'use client';
 
@@ -88,7 +88,7 @@ export default function Sidebar() {
     <>
       {/* Mobile Background Overlay (semi-transparent dark backdrop) */}
       <div
-        className={`fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 transition-opacity duration-300 lg:hidden ${
           sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => dispatch({ type: 'CLOSE_SIDEBAR' })}
@@ -101,25 +101,25 @@ export default function Sidebar() {
       <aside
         id="app-sidebar"
         aria-label="Main Navigation"
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-[80vw] max-w-[320px] lg:w-64 bg-slate-900 text-white flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-slate-800 shadow-2xl lg:shadow-none overflow-y-auto ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-[80vw] max-w-[320px] lg:w-64 bg-[#0B0F19] text-white flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-slate-800/80 shadow-2xl lg:shadow-none overflow-y-auto ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Brand Header */}
         <div>
-          <div className="p-4 sm:p-5 lg:p-6 border-b border-slate-800/80 flex items-center justify-between">
+          <div className="p-4 sm:p-5 lg:p-6 border-b border-slate-800/60 flex items-center justify-between">
             <div className="flex items-center space-x-3 min-w-0">
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 ring-1 ring-white/10">
                 <ShieldCheckIcon className="w-6 h-6 text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="font-bold text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5 truncate">
+                <h1 className="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5 truncate">
                   AgentPay
-                  <span className="text-[10px] uppercase font-semibold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
-                    AI Pay
+                  <span className="text-[10px] uppercase font-bold tracking-wider bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
+                    PRO
                   </span>
                 </h1>
-                <p className="text-xs text-slate-400 truncate">Find smarter. Spend safer.</p>
+                <p className="text-[11px] text-slate-400 truncate">Autonomous AI Shopping</p>
               </div>
             </div>
 
@@ -135,9 +135,9 @@ export default function Sidebar() {
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-3 sm:p-4 space-y-1.5" aria-label="Sidebar navigation links">
-            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Platform
+          <nav className="p-3 sm:p-4 space-y-1" aria-label="Sidebar navigation links">
+            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Platform Features
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -146,24 +146,24 @@ export default function Sidebar() {
                 <button
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium transition-all min-h-[44px] cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all min-h-[44px] cursor-pointer relative ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white active:bg-slate-800'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/25'
+                      : 'text-slate-300 hover:bg-slate-800/60 hover:text-white active:bg-slate-800'
                   }`}
                 >
                   <div className="flex items-center space-x-3 truncate">
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                     <span className="truncate">{item.label}</span>
                   </div>
                   <div className="flex items-center space-x-1.5 shrink-0 ml-2">
                     {item.badge && (
-                      <span className="text-[10px] font-semibold bg-violet-500/30 text-violet-200 px-1.5 py-0.5 rounded-full border border-violet-400/20">
+                      <span className="text-[9px] font-bold tracking-wider uppercase bg-violet-500/30 text-violet-200 px-1.5 py-0.5 rounded-full border border-violet-400/20">
                         {item.badge}
                       </span>
                     )}
                     {typeof item.count === 'number' && item.count > 0 && (
-                      <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
+                      <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 font-mono">
                         {item.count}
                       </span>
                     )}
@@ -175,12 +175,12 @@ export default function Sidebar() {
         </div>
 
         {/* Footer / Live Budget & Localization Overview */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/60 shrink-0 space-y-3">
+        <div className="p-4 border-t border-slate-800/80 bg-[#090D15] shrink-0 space-y-3">
           {/* Active Country / Currency Pill */}
           <button
             type="button"
             onClick={openCountrySelector}
-            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-colors text-xs cursor-pointer group"
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 transition-colors text-xs cursor-pointer group"
             title="Click to change country or currency"
           >
             <div className="flex items-center space-x-2 truncate">
@@ -189,7 +189,7 @@ export default function Sidebar() {
                 <span className="font-semibold text-slate-200 block truncate leading-tight">
                   {currentCountry.name}
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">
+                <span className="text-[10px] text-slate-400 font-mono font-bold">
                   {userPreferences?.currencyCode || 'USD'}
                 </span>
               </div>
@@ -200,17 +200,21 @@ export default function Sidebar() {
             </div>
           </button>
 
-          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-slate-400 font-medium">Daily Budget</span>
-              <span className="text-emerald-400 font-semibold">
+              <span className="text-emerald-400 font-bold">
                 {spendingSummary
-                  ? formatPrice(spendingSummary.remainingDailyBudget)
+                  ? formatPrice(
+                      spendingSummary.remainingDailyBudget,
+                      false,
+                      spendingSummary.currency || budget?.currency || 'USD'
+                    )
                   : formatPrice(200)}{' '}
                 left
               </span>
             </div>
-            <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full transition-all duration-500"
                 style={{
@@ -218,19 +222,25 @@ export default function Sidebar() {
                 }}
               />
             </div>
-            <div className="flex justify-between items-center text-[11px] text-slate-400 mt-2">
-              <span>Limit: {formatPrice(budget ? budget.dailySpendingLimit : 200)}</span>
-              <span>Max: {formatPrice(budget ? budget.maxPurchaseAmount : 100)}</span>
+            <div className="flex justify-between items-center text-[10px] text-slate-400 mt-2 font-mono">
+              <span>
+                Limit:{' '}
+                {formatPrice(budget ? budget.dailySpendingLimit : 200, false, budget?.currency || 'USD')}
+              </span>
+              <span>
+                Max:{' '}
+                {formatPrice(budget ? budget.maxPurchaseAmount : 100, false, budget?.currency || 'USD')}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400">
             <div className="flex items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-medium text-slate-300">PayPal Sandbox</span>
+              <span className="font-semibold text-slate-300">PayPal Verified</span>
             </div>
-            <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 border border-slate-700">
-              REST v2
+            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono border border-slate-700">
+              Direct API
             </span>
           </div>
         </div>

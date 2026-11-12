@@ -3,18 +3,16 @@
 // Server-side only: CHANNEL3_API_KEY is read securely from environment variables
 
 import { Product } from '@/types';
+import { convertAmountWithRates } from './exchange-rates';
 
 const CHANNEL3_API_URL = 'https://api.trychannel3.com/v1/search';
 const CHANNEL3_API_KEY = process.env.CHANNEL3_API_KEY || '';
 
-/**
- * Check if a valid Channel3 API key is configured.
- */
 export function isChannel3Configured(): boolean {
   return Boolean(
     CHANNEL3_API_KEY &&
-    !CHANNEL3_API_KEY.includes('your_channel3_api_key') &&
-    CHANNEL3_API_KEY.trim().length > 5
+      !CHANNEL3_API_KEY.includes('your_channel3_api_key') &&
+      CHANNEL3_API_KEY.trim().length > 5
   );
 }
 
@@ -23,7 +21,7 @@ export interface Channel3RawProduct {
   title: string;
   description?: string;
   brands?: { id?: string; name?: string }[];
-  category?: string | { id?: string; name?: string };
+  category?: string | { id?: string; name?: string; title?: string; slug?: string };
   images?: {
     url?: string;
     cleaned_url?: string;
@@ -54,14 +52,29 @@ export interface Channel3SearchResponse {
   products: Channel3RawProduct[];
 }
 
-/**
- * Search products using the official Channel3 API.
- * Uses POST https://api.trychannel3.com/v1/search with x-api-key header.
- */
+function inferMerchantCountryFromOffer(domain?: string, currency?: string): string | undefined {
+  const d = (domain || '').toLowerCase();
+  if (d.endsWith('.in') || d.includes('.co.in')) return 'IN';
+  if (d.endsWith('.co.uk') || d.endsWith('.uk')) return 'GB';
+  if (d.endsWith('.de')) return 'DE';
+  if (d.endsWith('.fr')) return 'FR';
+  if (d.endsWith('.ca')) return 'CA';
+  if (d.endsWith('.jp') || d.endsWith('.co.jp')) return 'JP';
+  if (d.endsWith('.au') || d.endsWith('.com.au')) return 'AU';
+  const cur = (currency || '').toUpperCase();
+  if (cur === 'INR') return 'IN';
+  if (cur === 'GBP') return 'GB';
+  if (cur === 'JPY') return 'JP';
+  if (cur === 'USD') return 'US';
+  return undefined;
+}
+
 export async function searchChannel3Products(
   query: string,
   options?: {
     maxPrice?: number;
+    maxPriceCurrency?: string;
+    rates?: Record<string, number>;
     limit?: number;
   }
 ): Promise<Product[]> {
@@ -86,6 +99,7 @@ export async function searchChannel3Products(
       body: JSON.stringify({
         query: cleanQuery,
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -102,66 +116,85 @@ export async function searchChannel3Products(
     const data: Channel3SearchResponse = await response.json();
     const rawProducts = data.products || [];
 
-    // Map raw Channel3 product schema to AgentPay Product model
     const mapped: Product[] = rawProducts
       .map((p) => {
         const primaryOffer = p.offers?.[0];
-        const price = primaryOffer?.price?.price ?? 0;
-        const currency = primaryOffer?.price?.currency || 'USD';
+        const price = Number(primaryOffer?.price?.price ?? 0);
+        const compareAt = primaryOffer?.price?.compare_at_price;
+        const compareAtPrice =
+          typeof compareAt === 'number' && compareAt > price ? Number(compareAt) : undefined;
+        const originalCurrency = (primaryOffer?.price?.currency || 'USD').toUpperCase();
         const brand = p.brands?.[0]?.name || 'Brand';
-        const seller = primaryOffer?.domain || 'Verified Merchant';
+        const seller = primaryOffer?.domain || 'External Merchant';
         const productUrl = primaryOffer?.url || '#';
+        const merchantCountry = inferMerchantCountryFromOffer(primaryOffer?.domain, originalCurrency);
 
-        // Select main or cleaned hero image
+        const allImages = (p.images || [])
+          .map((img) => img.cleaned_url || img.url)
+          .filter((u): u is string => Boolean(u && u.startsWith('http')));
+
         const mainImg = p.images?.find((img) => img.is_main_image) || p.images?.[0];
-        const imageUrl = mainImg?.cleaned_url || mainImg?.url || '';
+        const imageUrl =
+          mainImg?.cleaned_url ||
+          mainImg?.url ||
+          allImages[0] ||
+          'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80';
 
-        // Category formatting
         const categoryStr =
           typeof p.category === 'string'
             ? p.category
-            : p.category?.name || 'general';
+            : p.category?.title || p.category?.name || p.category?.slug || 'general';
 
         return {
           id: `c3-${p.id}`,
           name: p.title || 'Untitled Product',
           brand,
-          price: Number(price),
-          currency,
-          imageUrl: imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+          price,
+          originalPrice: price,
+          originalCurrency,
+          compareAtPrice,
+          currency: originalCurrency,
+          merchantCountry,
+          priceIsConverted: false,
+          imageUrl,
+          images: allImages.length > 0 ? allImages : [imageUrl],
           description: p.description || '',
           seller,
           productUrl,
           category: categoryStr,
-          rating: p.ratings?.value,
-          reviewCount: p.ratings?.count,
-          availability: primaryOffer?.availability || 'InStock',
+          rating: p.ratings?.value ?? undefined,
+          reviewCount: p.ratings?.count ?? undefined,
+          availability: primaryOffer?.availability || undefined,
           features: Array.isArray(p.key_features) ? p.key_features : [],
-          isDemo: false, // Verified live product from Channel3 API
+          checkoutType: 'external' as const,
+          createdAt: new Date().toISOString(),
+          isDemo: false,
         };
       })
-      // Ensure products have valid price
       .filter((p) => p.price > 0);
 
-    // Apply budget awareness
+    const seenKeys = new Set<string>();
+    const deduped = mapped.filter((p) => {
+      const key = `${p.name.toLowerCase().trim()}|${p.seller.toLowerCase().trim()}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+
     if (typeof options?.maxPrice === 'number' && !isNaN(options.maxPrice) && options.maxPrice > 0) {
-      const withinBudget = mapped.filter((p) => p.price <= options.maxPrice!);
-      if (withinBudget.length >= 3) {
-        return options?.limit ? withinBudget.slice(0, options.limit) : withinBudget;
-      } else if (withinBudget.length > 0) {
-        // Include within-budget products first, plus closest alternatives
-        const aboveBudget = mapped
-          .filter((p) => p.price > options.maxPrice!)
-          .sort((a, b) => a.price - b.price);
-        const combined = [...withinBudget, ...aboveBudget];
-        return options?.limit ? combined.slice(0, options.limit) : combined;
-      }
+      const targetCurrency = (options.maxPriceCurrency || 'USD').toUpperCase();
+      const ratesMap = options.rates || { USD: 1.0 };
+      const getConvertedToTarget = (p: Product) =>
+        convertAmountWithRates(p.originalPrice, p.originalCurrency, targetCurrency, ratesMap)
+          .displayAmount;
+
+      const withinBudget = deduped.filter((p) => getConvertedToTarget(p) <= options.maxPrice!);
+      return options?.limit ? withinBudget.slice(0, options.limit) : withinBudget;
     }
 
-    return options?.limit ? mapped.slice(0, options.limit) : mapped;
-  } catch (error: any) {
+    return options?.limit ? deduped.slice(0, options.limit) : deduped;
+  } catch (error) {
     console.error('Channel3 API Search Error:', error);
     throw error;
   }
 }
-

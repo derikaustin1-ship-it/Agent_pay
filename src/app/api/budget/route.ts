@@ -1,24 +1,41 @@
 // src/app/api/budget/route.ts
-// Budget settings API - get and update user spending limits
+// Budget settings API - strictly scoped to the authenticated user
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserBudget, updateUserBudget } from '@/lib/database';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { resolveServerPreferences } from '@/lib/preferences';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_USER_ID = 'demo-user-1';
-
 export async function GET() {
   try {
-    const budget = getUserBudget(DEFAULT_USER_ID);
-    
+    const user = await getAuthenticatedUser();
+    const prefsResolved = await resolveServerPreferences();
+    if (!user) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          userId: null,
+          maxPurchaseAmount: 150,
+          dailySpendingLimit: 300,
+          currency: 'USD',
+          preferredCurrency: prefsResolved.currencyCode,
+          isDefault: true,
+        },
+      });
+    }
+
+    const budget = getUserBudget(user.id);
     if (!budget) {
       return NextResponse.json({
         success: true,
         data: {
-          userId: DEFAULT_USER_ID,
-          maxPurchaseAmount: 100,
-          dailySpendingLimit: 200,
+          userId: user.id,
+          maxPurchaseAmount: 150,
+          dailySpendingLimit: 300,
+          currency: 'USD',
+          preferredCurrency: prefsResolved.currencyCode,
         },
       });
     }
@@ -29,6 +46,8 @@ export async function GET() {
         userId: budget.user_id,
         maxPurchaseAmount: budget.max_purchase_amount,
         dailySpendingLimit: budget.daily_spending_limit,
+        currency: (budget.currency || 'USD').toUpperCase(),
+        preferredCurrency: prefsResolved.currencyCode,
         createdAt: budget.created_at,
         updatedAt: budget.updated_at,
       },
@@ -44,10 +63,21 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { maxPurchaseAmount, dailySpendingLimit } = body;
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Please sign in to update your budget settings.' },
+        { status: 401 }
+      );
+    }
 
-    // Validate inputs
+    const body = await request.json();
+    const { maxPurchaseAmount, dailySpendingLimit, currency } = body as {
+      maxPurchaseAmount: number;
+      dailySpendingLimit: number;
+      currency?: string;
+    };
+
     if (typeof maxPurchaseAmount !== 'number' || maxPurchaseAmount <= 0) {
       return NextResponse.json(
         { success: false, error: 'Maximum purchase amount must be a positive number' },
@@ -67,16 +97,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    updateUserBudget(DEFAULT_USER_ID, maxPurchaseAmount, dailySpendingLimit);
+    const prefsResolved = await resolveServerPreferences(undefined, currency);
+    const budgetCurrency = (currency || prefsResolved.currencyCode || 'USD').toUpperCase();
 
-    const updated = getUserBudget(DEFAULT_USER_ID);
+    updateUserBudget(user.id, maxPurchaseAmount, dailySpendingLimit, budgetCurrency);
+    const updated = getUserBudget(user.id);
 
     return NextResponse.json({
       success: true,
       data: {
-        userId: DEFAULT_USER_ID,
+        userId: user.id,
         maxPurchaseAmount: updated?.max_purchase_amount || maxPurchaseAmount,
         dailySpendingLimit: updated?.daily_spending_limit || dailySpendingLimit,
+        currency: (updated?.currency || budgetCurrency).toUpperCase(),
         updatedAt: updated?.updated_at,
       },
     });

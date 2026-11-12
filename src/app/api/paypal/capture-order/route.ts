@@ -1,12 +1,38 @@
 // src/app/api/paypal/capture-order/route.ts
 // Captures an approved PayPal Sandbox order securely
-// Features pre-capture status verification, duplicate-capture protection, and idempotency handling
+// Features pre-capture status verification, duplicate-capture protection, cart cleanup, and notifications.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { capturePayPalOrder, getPayPalOrderStatus, isPayPalConfigured } from '@/lib/paypal';
-import { updateOrderStatusByPayPalId, isOrderAlreadyCaptured, getOrderByPayPalId } from '@/lib/database';
+import {
+  clearCart,
+  createNotification,
+  DbOrderItem,
+  getOrderByPayPalId,
+  isOrderAlreadyCaptured,
+  updateOrderStatusByPayPalId,
+} from '@/lib/database';
+import { getAuthenticatedUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+function clearPurchasedCartItems(paypalOrderId: string) {
+  const dbOrder = getOrderByPayPalId(paypalOrderId);
+  if (!dbOrder) return;
+
+  let productIds: string[] = [dbOrder.product_id];
+  if (dbOrder.items) {
+    try {
+      const parsed = JSON.parse(dbOrder.items) as DbOrderItem[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        productIds = parsed.map((i) => i.productId);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  clearCart(dbOrder.user_id, productIds);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +46,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required to capture payment.' },
+        { status: 401 }
+      );
+    }
+
+    const existingOrderRecord = getOrderByPayPalId(paypalOrderId);
+    if (existingOrderRecord && existingOrderRecord.user_id !== user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Order belongs to another account.' },
+        { status: 403 }
+      );
+    }
+
     // Step 1: Idempotency & Duplicate capture protection
-    // If order was already captured, return the existing receipt safely instead of throwing 409
     if (isOrderAlreadyCaptured(paypalOrderId)) {
       const existingOrder = getOrderByPayPalId(paypalOrderId);
       return NextResponse.json({
@@ -41,11 +82,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Step 2: Handle Demo Mode (PayPal credentials not configured)
+    // Step 2: Demo Mode fallback (PayPal credentials not configured)
     if (!isPayPalConfigured()) {
       const dbOrder = getOrderByPayPalId(paypalOrderId);
       updateOrderStatusByPayPalId(paypalOrderId, 'captured');
-      
+      clearPurchasedCartItems(paypalOrderId);
+      if (dbOrder) {
+        createNotification(dbOrder.user_id, {
+          type: 'payment_status',
+          title: 'Order Payment Captured (Demo)',
+          message: `Order for ${dbOrder.product_name} ($${dbOrder.amount.toFixed(2)} USD) completed.`,
+          link: '/orders',
+        });
+      }
+
       return NextResponse.json({
         success: true,
         data: {
@@ -56,29 +106,34 @@ export async function POST(request: NextRequest) {
           productName: dbOrder?.product_name || 'Simulated Item',
           productImage: dbOrder?.product_image || '',
           isDemo: true,
-          message: 'Simulated capture (PayPal not configured). This is a demo transaction.',
+          message: 'Simulated capture (PayPal not configured).',
         },
       });
     }
 
-    // Step 3: Verify the PayPal Sandbox order status with PayPal before attempting capture
+    // Step 3: Verify PayPal Sandbox order status before capture
     let paypalStatus;
     try {
       paypalStatus = await getPayPalOrderStatus(paypalOrderId);
     } catch (statusErr) {
       console.error('PayPal getOrderStatus error:', statusErr);
+      const errMsg = statusErr instanceof Error ? statusErr.message : '';
+      const isNetworkOrConfig =
+        /network|timed out|OAuth|not configured/i.test(errMsg);
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid or unverified PayPal order ID. Order was not found in PayPal Sandbox.',
+          error: isNetworkOrConfig
+            ? errMsg
+            : 'Invalid or unverified PayPal order ID. Order was not found in PayPal Sandbox.',
         },
-        { status: 400 }
+        { status: isNetworkOrConfig ? 502 : 400 }
       );
     }
 
-    // If order is already completed on PayPal, update DB and return receipt
     if (paypalStatus.status === 'COMPLETED') {
       updateOrderStatusByPayPalId(paypalOrderId, 'captured', paypalStatus.captureId);
+      clearPurchasedCartItems(paypalOrderId);
       const dbOrder = getOrderByPayPalId(paypalOrderId);
       return NextResponse.json({
         success: true,
@@ -96,7 +151,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Ensure user has explicitly approved the order (status must be APPROVED)
     if (paypalStatus.status !== 'APPROVED') {
       return NextResponse.json(
         {
@@ -107,12 +161,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 4: Securely capture payment with PayPal REST Orders API
+    // Step 4: Capture payment with PayPal REST Orders API
     const captureResult = await capturePayPalOrder(paypalOrderId);
 
     if (captureResult.status === 'COMPLETED') {
       updateOrderStatusByPayPalId(paypalOrderId, 'captured', captureResult.captureId);
+      clearPurchasedCartItems(paypalOrderId);
       const dbOrder = getOrderByPayPalId(paypalOrderId);
+      if (dbOrder) {
+        createNotification(dbOrder.user_id, {
+          type: 'payment_status',
+          title: 'PayPal Payment Confirmed',
+          message: `Payment of $${(captureResult.amount || dbOrder.amount.toFixed(2))} USD for ${dbOrder.product_name} was captured.`,
+          link: '/orders',
+        });
+      }
 
       return NextResponse.json({
         success: true,

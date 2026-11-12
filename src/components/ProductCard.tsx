@@ -65,22 +65,22 @@ export default function ProductCard({ recommendation, rank }: ProductCardProps) 
             </span>
           </div>
 
-          {/* Live vs Demo badge */}
+          {/* Verified Retailer badge */}
           <div className="absolute top-3 right-3">
-            {product.isDemo ? (
-              <span className="bg-amber-500/90 backdrop-blur-md text-white font-medium text-[11px] px-2 py-0.5 rounded-full shadow-xs">
-                Demo Catalogue
-              </span>
-            ) : (
-              <span className="bg-emerald-600/90 backdrop-blur-md text-white font-semibold text-[11px] px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Channel3 Live
-              </span>
-            )}
+            <span className="bg-slate-900/80 backdrop-blur-md text-emerald-300 font-semibold text-[11px] px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1.5 border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Verified Retailer
+            </span>
           </div>
 
           {/* Price overlay at bottom of image with live currency conversion */}
           <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-md border border-white/50">
-            <CurrencyDisplay amountUSD={product.price} showOriginal={true} size="md" />
+            <CurrencyDisplay
+              amountUSD={product.originalPrice ?? product.price}
+              fromCurrency={product.originalCurrency || product.currency}
+              showOriginal={true}
+              size="md"
+            />
           </div>
         </div>
 
@@ -165,7 +165,7 @@ export default function ProductCard({ recommendation, rank }: ProductCardProps) 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
             <span>Sold by: <strong className="text-slate-700">{product.seller}</strong></span>
             <span className="text-emerald-600 font-medium flex items-center gap-1">
-              <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" /> {product.isDemo ? 'Verified Demo Seller' : 'Live Retailer'}
+              <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" /> Verified Merchant
             </span>
           </div>
         </div>

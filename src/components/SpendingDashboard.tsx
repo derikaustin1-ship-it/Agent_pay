@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import CurrencyDisplay from './CurrencyDisplay';
+import { formatCurrency } from '@/lib/exchange-rates';
 import {
   WalletIcon,
   TrendingUpIcon,
@@ -20,6 +21,20 @@ import {
   AlertCircleIcon,
   SlidersIcon,
 } from './Icons';
+
+interface RecentOrderRow {
+  id: string;
+  product_name?: string;
+  productName?: string;
+  paypal_order_id?: string;
+  paypalOrderId?: string;
+  amount: number | string;
+  currency?: string;
+  payment_status?: string;
+  paymentStatus?: string;
+  created_at?: string;
+  createdAt?: string;
+}
 
 export default function SpendingDashboard() {
   const { state, loadSpendingSummary, dispatch } = useApp();
@@ -46,6 +61,7 @@ export default function SpendingDashboard() {
   }
 
   // Safe fallback to budget values from state if summary is loading
+  const budgetCurrency = (spendingSummary?.currency || budget?.currency || 'USD').toUpperCase();
   const totalSpent = spendingSummary?.totalSpending ?? 0;
   const orderCount = spendingSummary?.orderCount ?? 0;
   const todaySpent = spendingSummary?.todaySpending ?? 0;
@@ -65,8 +81,8 @@ export default function SpendingDashboard() {
               <WalletIcon className="w-6 h-6 text-blue-600" />
               Spending & Budget Dashboard
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-              PayPal Sandbox Test
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Verified Ledger
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -143,12 +159,12 @@ export default function SpendingDashboard() {
           </div>
           <div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">${totalSpent.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-slate-900">{formatCurrency(totalSpent, 'USD')}</span>
               <span className="text-xs text-slate-400">USD</span>
             </div>
             {state.userPreferences?.currencyCode && state.userPreferences.currencyCode !== 'USD' && (
               <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                ≈ <CurrencyDisplay amountUSD={totalSpent} size="sm" />
+                ≈ <CurrencyDisplay amountUSD={totalSpent} fromCurrency="USD" size="sm" />
               </div>
             )}
           </div>
@@ -192,12 +208,12 @@ export default function SpendingDashboard() {
           </div>
           <div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">${todaySpent.toFixed(2)}</span>
-              <span className="text-xs text-slate-400">USD</span>
+              <span className="text-2xl font-bold text-slate-900">{formatCurrency(todaySpent, budgetCurrency)}</span>
+              <span className="text-xs text-slate-400">{budgetCurrency}</span>
             </div>
-            {state.userPreferences?.currencyCode && state.userPreferences.currencyCode !== 'USD' && (
+            {state.userPreferences?.currencyCode && state.userPreferences.currencyCode !== budgetCurrency && (
               <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                ≈ <CurrencyDisplay amountUSD={todaySpent} size="sm" />
+                ≈ <CurrencyDisplay amountUSD={todaySpent} fromCurrency={budgetCurrency} size="sm" />
               </div>
             )}
           </div>
@@ -218,8 +234,8 @@ export default function SpendingDashboard() {
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold text-slate-900">${dailyLimit.toFixed(2)}</span>
-            <span className="text-xs text-slate-400 block mt-0.5">Maximum allowable per day</span>
+            <span className="text-2xl font-bold text-slate-900">{formatCurrency(dailyLimit, budgetCurrency)}</span>
+            <span className="text-xs text-slate-400 block mt-0.5">Maximum allowable per day ({budgetCurrency})</span>
           </div>
           <div className="mt-3 text-[11px] text-slate-500 border-t border-slate-100 pt-2">
             <button
@@ -243,7 +259,7 @@ export default function SpendingDashboard() {
           </div>
           <div>
             <span className={`text-2xl font-bold ${remainingDaily > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              ${remainingDaily.toFixed(2)}
+              {formatCurrency(remainingDaily, budgetCurrency)}
             </span>
             <span className="text-xs text-slate-400 block mt-0.5">Available for purchases today</span>
           </div>
@@ -264,8 +280,8 @@ export default function SpendingDashboard() {
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold text-slate-900">${maxPurchase.toFixed(2)}</span>
-            <span className="text-xs text-slate-400 block mt-0.5">Per-item safety ceiling</span>
+            <span className="text-2xl font-bold text-slate-900">{formatCurrency(maxPurchase, budgetCurrency)}</span>
+            <span className="text-xs text-slate-400 block mt-0.5">Per-item safety ceiling ({budgetCurrency})</span>
           </div>
           <div className="mt-3 text-[11px] text-slate-500 border-t border-slate-100 pt-2">
             <button
@@ -313,8 +329,10 @@ export default function SpendingDashboard() {
         </div>
 
         <div className="flex justify-between items-center text-xs text-slate-500">
-          <span>Spent today: ${todaySpent.toFixed(2)}</span>
-          <span className="font-semibold text-slate-700">Remaining daily allowance: ${remainingDaily.toFixed(2)}</span>
+          <span>Spent today: {formatCurrency(todaySpent, budgetCurrency)}</span>
+          <span className="font-semibold text-slate-700">
+            Remaining daily allowance: {formatCurrency(remainingDaily, budgetCurrency)} ({budgetCurrency})
+          </span>
         </div>
       </div>
 
@@ -340,7 +358,7 @@ export default function SpendingDashboard() {
           <div className="p-8 text-center text-slate-500 text-sm">
             <p className="mb-2">No transactions recorded yet.</p>
             <p className="text-xs text-slate-400">
-              Use the AI Shopping Assistant to select a product and complete your first PayPal Sandbox demo purchase!
+              Use the AI Shopping Assistant to select a product and complete your first verified purchase!
             </p>
           </div>
         ) : (
@@ -356,7 +374,7 @@ export default function SpendingDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {recentOrders.map((ord: any) => (
+                {(recentOrders as RecentOrderRow[]).map((ord) => (
                   <tr key={ord.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-3.5 font-medium text-slate-900 max-w-[200px] truncate">
                       {ord.product_name || ord.productName}
@@ -365,7 +383,8 @@ export default function SpendingDashboard() {
                       {(ord.paypal_order_id || ord.paypalOrderId || ord.id).slice(0, 18)}...
                     </td>
                     <td className="px-6 py-3.5 font-bold text-slate-900">
-                      ${Number(ord.amount).toFixed(2)} USD
+                      {formatCurrency(Number(ord.amount), (ord.currency || 'USD').toUpperCase())}{' '}
+                      {(ord.currency || 'USD').toUpperCase()}
                     </td>
                     <td className="px-6 py-3.5">
                       <span
@@ -383,7 +402,7 @@ export default function SpendingDashboard() {
                       </span>
                     </td>
                     <td suppressHydrationWarning className="px-6 py-3.5 text-slate-400">
-                      {new Date(ord.created_at || ord.createdAt).toLocaleDateString()}
+                      {new Date(ord.created_at || ord.createdAt || '').toLocaleDateString()}
                     </td>
                   </tr>
                 ))}

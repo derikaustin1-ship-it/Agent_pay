@@ -15,9 +15,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const prompt = body.prompt || 'Find wireless headphones under $100.';
     return handleTest(prompt);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Invalid request body';
     return NextResponse.json(
-      { success: false, error: err.message || 'Invalid request body' },
+      { success: false, error: message },
       { status: 400 }
     );
   }
@@ -52,12 +53,13 @@ async function handleTest(prompt: string) {
         featuresCount: analysis.importantFeatures.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Gemini test endpoint error:', error);
+    const message = error instanceof Error ? error.message : 'Gemini API call failed';
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Gemini API call failed',
+        error: message,
         sdk: '@google/genai',
       },
       { status: 500 }

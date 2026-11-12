@@ -3,6 +3,34 @@
 
 const BASE_URL = 'http://localhost:3000';
 
+let cookieJar = '';
+function captureCookies(res) {
+  const raw = typeof res.headers.getSetCookie === 'function'
+    ? res.headers.getSetCookie()
+    : (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')] : []);
+  const map = new Map();
+  if (cookieJar) {
+    for (const part of cookieJar.split('; ')) {
+      const idx = part.indexOf('=');
+      if (idx > 0) map.set(part.slice(0, idx), part.slice(idx + 1));
+    }
+  }
+  for (const entry of raw) {
+    const first = entry.split(';')[0];
+    const idx = first.indexOf('=');
+    if (idx > 0) map.set(first.slice(0, idx).trim(), first.slice(idx + 1).trim());
+  }
+  cookieJar = Array.from(map.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+async function apiFetch(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (cookieJar) headers['Cookie'] = cookieJar;
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  captureCookies(res);
+  return res;
+}
+
 async function runTests() {
   console.log('====================================================');
   console.log('🌍 AGENTPAY: GLOBAL COUNTRY & CURRENCY VERIFICATION');
@@ -29,7 +57,7 @@ async function runTests() {
   // Test 2: User Preference Update (Set to India INR)
   try {
     process.stdout.write('👉 TEST 2: Save and persist user country & currency (India / INR)... ');
-    const postRes = await fetch(`${BASE_URL}/api/user/preferences`, {
+    const postRes = await apiFetch('/api/user/preferences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ countryCode: 'IN', currencyCode: 'INR' }),
@@ -39,9 +67,9 @@ async function runTests() {
       throw new Error('Failed to update user preference');
     }
 
-    const getRes = await fetch(`${BASE_URL}/api/user/preferences`);
+    const getRes = await apiFetch('/api/user/preferences');
     const getJson = await getRes.json();
-    if (!getRes.ok || !getJson.success || getJson.data.countryCode !== 'IN') {
+    if (!getRes.ok || !getJson.success || getJson.data?.countryCode !== 'IN') {
       throw new Error('Persisted preference does not match updated country');
     }
     console.log(`✅ PASSED (Persisted country: ${getJson.data.country.name}, Currency: ${getJson.data.currencyCode}, Flag: ${getJson.data.country.flag})`);
@@ -54,9 +82,9 @@ async function runTests() {
   // Test 3: India Domestic PayPal Gating Flag
   try {
     process.stdout.write('👉 TEST 3: India country profile surfaces PayPal domestic limitation... ');
-    const res = await fetch(`${BASE_URL}/api/user/preferences`);
+    const res = await apiFetch('/api/user/preferences');
     const json = await res.json();
-    if (!json.data.country.paypalDomesticUnavailable) {
+    if (!json.data?.country?.paypalDomesticUnavailable) {
       throw new Error('paypalDomesticUnavailable flag is missing for India');
     }
     console.log('✅ PASSED (paypalDomesticUnavailable: true verified)');
@@ -69,7 +97,7 @@ async function runTests() {
   // Test 4: Reset User Preference to US / USD
   try {
     process.stdout.write('👉 TEST 4: Revert user country to US / USD... ');
-    const res = await fetch(`${BASE_URL}/api/user/preferences`, {
+    const res = await apiFetch('/api/user/preferences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ countryCode: 'US', currencyCode: 'USD' }),

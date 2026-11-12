@@ -139,7 +139,7 @@ export default function SelectedProductSummary() {
 
             <button
               id="continue-to-review-btn"
-              onClick={proceedToCheckout}
+              onClick={() => proceedToCheckout()}
               className="inline-flex items-center justify-center space-x-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all cursor-pointer active:scale-95"
             >
               <span>Continue</span>

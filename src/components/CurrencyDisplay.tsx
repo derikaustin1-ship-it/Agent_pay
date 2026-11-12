@@ -8,6 +8,7 @@ import { useApp } from '@/context/AppContext';
 
 interface CurrencyDisplayProps {
   amountUSD: number;
+  fromCurrency?: string;
   showOriginal?: boolean;
   className?: string;
   originalClassName?: string;
@@ -16,13 +17,14 @@ interface CurrencyDisplayProps {
 
 export default function CurrencyDisplay({
   amountUSD,
+  fromCurrency = 'USD',
   showOriginal = false,
   className = '',
   originalClassName = '',
   size = 'md',
 }: CurrencyDisplayProps) {
   const { getConvertedPrice, state } = useApp();
-  const info = getConvertedPrice(amountUSD);
+  const info = getConvertedPrice(amountUSD, fromCurrency);
 
   const sizeClasses = {
     sm: 'text-xs font-semibold',
@@ -32,8 +34,8 @@ export default function CurrencyDisplay({
   };
 
   const rateTooltip = info.isConverted
-    ? `Converted from $${amountUSD.toFixed(2)} USD at 1 USD = ${info.exchangeRate.toFixed(4)} ${info.displayCurrency} (${state.ratesSource || 'Live API'})`
-    : 'Original USD price';
+    ? `Converted from ${info.formattedOriginal} ${info.originalCurrency} at 1 ${info.originalCurrency} = ${info.exchangeRate.toFixed(4)} ${info.displayCurrency} (${state.ratesSource || 'Live API'})`
+    : `Original ${info.originalCurrency} price`;
 
   return (
     <span className="inline-flex flex-col items-baseline" title={rateTooltip}>
@@ -43,7 +45,7 @@ export default function CurrencyDisplay({
       </span>
       {showOriginal && info.isConverted && (
         <span className={`text-[11px] text-slate-400 font-normal mt-0.5 ${originalClassName}`}>
-          ({info.formattedOriginal} USD)
+          ({info.formattedOriginal} {info.originalCurrency})
         </span>
       )}
     </span>

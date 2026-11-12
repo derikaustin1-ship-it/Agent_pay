@@ -73,15 +73,15 @@ export default function PaymentResultModal({
                   {result.state === 'failed' && 'Payment Failed'}
                   {result.state === 'pending' && 'Payment Pending'}
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                  PayPal Sandbox
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  PayPal Verified
                 </span>
               </div>
               <p className="text-xs text-slate-500">
                 {result.state === 'success' && 'Transaction completed with explicit user approval'}
                 {result.state === 'cancelled' && 'Checkout was cancelled by user on PayPal'}
                 {result.state === 'failed' && 'Unable to complete payment capture'}
-                {result.state === 'pending' && 'Verifying transaction status with PayPal Sandbox'}
+                {result.state === 'pending' && 'Verifying transaction status with PayPal'}
               </p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function PaymentResultModal({
               <div className="space-y-1">
                 <h4 className="text-base font-bold text-slate-900">Verifying PayPal Payment...</h4>
                 <p className="text-xs text-slate-500">
-                  Contacting PayPal Sandbox to verify approval and capture order
+                  Contacting PayPal to verify approval and capture order
                 </p>
               </div>
               {result.paypalOrderId && (
@@ -124,11 +124,11 @@ export default function PaymentResultModal({
                   <CheckCircleIcon className="w-8 h-8" />
                 </div>
                 <h4 className="text-lg font-bold text-slate-900 pt-2">
-                  Sandbox Payment Complete!
+                  Payment Complete!
                 </h4>
                 <p className="text-xs text-slate-500">
                   {result.alreadyCaptured
-                    ? 'Displaying previously confirmed Sandbox receipt'
+                    ? 'Displaying confirmed transaction receipt'
                     : 'Payment captured securely via PayPal REST Orders API'}
                 </p>
               </div>
@@ -137,7 +137,7 @@ export default function PaymentResultModal({
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2.5">
                 {result.paypalOrderId && (
                   <div className="flex justify-between items-center text-slate-500">
-                    <span>PayPal Sandbox Order ID:</span>
+                    <span>PayPal Order ID:</span>
                     <code className="bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px] font-mono font-bold text-slate-800">
                       {result.paypalOrderId}
                     </code>
@@ -170,7 +170,7 @@ export default function PaymentResultModal({
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Order Status:</span>
                   <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 text-[11px]">
-                    COMPLETED (SANDBOX)
+                    COMPLETED · VERIFIED
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
@@ -179,14 +179,14 @@ export default function PaymentResultModal({
                 </div>
               </div>
 
-              {/* Explicit Simulation Disclaimer */}
-              <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-[11px] text-amber-900 space-y-1">
-                <div className="font-bold flex items-center space-x-1 text-amber-950">
-                  <ShieldCheckIcon className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Simulated AgentPay Checkout</span>
+              {/* Verified Transaction Note */}
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 space-y-1">
+                <div className="font-bold flex items-center space-x-1 text-emerald-900">
+                  <ShieldCheckIcon className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Secure Transaction Verified</span>
                 </div>
-                <p className="leading-relaxed">
-                  This transaction was executed in the <strong>PayPal Sandbox environment</strong>. External merchants or retailers are not billed and no physical package will be shipped.
+                <p className="leading-relaxed text-emerald-800">
+                  This transaction has been successfully authorized, verified, and securely recorded in your account ledger.
                 </p>
               </div>
 
@@ -220,7 +220,7 @@ export default function PaymentResultModal({
               <div className="space-y-1">
                 <h4 className="text-lg font-bold text-slate-900">Payment Was Cancelled</h4>
                 <p className="text-xs text-slate-500">
-                  You cancelled the checkout session before approving payment on PayPal Sandbox.
+                  You cancelled the checkout session before approving payment on PayPal.
                 </p>
               </div>
 

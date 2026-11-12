@@ -1,7 +1,7 @@
 // src/lib/exchange-rates.ts
 // Live exchange rate service with caching, precision conversion, and currency formatting
 
-import { ZERO_DECIMAL_CURRENCIES, getCountryByCode } from './countries';
+import { ZERO_DECIMAL_CURRENCIES } from './countries';
 
 export interface ExchangeRatesData {
   rates: Record<string, number>;
@@ -95,20 +95,112 @@ export async function getExchangeRates(): Promise<ExchangeRatesData> {
 }
 
 /**
+ * Return minor unit precision (0 for zero-decimal currencies like JPY, 2 otherwise).
+ */
+export function getCurrencyDecimals(currencyCode: string): number {
+  const upper = (currencyCode || 'USD').toUpperCase();
+  return (ZERO_DECIMAL_CURRENCIES as readonly string[]).includes(upper) ? 0 : 2;
+}
+
+/**
+ * Convert a decimal currency amount into exact integer minor units (e.g. cents or whole yen).
+ */
+export function toMinorUnits(amount: number, currencyCode: string): number {
+  const factor = Math.pow(10, getCurrencyDecimals(currencyCode));
+  return Math.round((Number.isFinite(amount) ? amount : 0) * factor);
+}
+
+/**
+ * Convert integer minor units back to a standard rounded currency amount.
+ */
+export function fromMinorUnits(minorUnits: number, currencyCode: string): number {
+  const decimals = getCurrencyDecimals(currencyCode);
+  const factor = Math.pow(10, decimals);
+  const roundedMinor = Math.round(minorUnits);
+  return decimals === 0 ? roundedMinor : Number((roundedMinor / factor).toFixed(decimals));
+}
+
+/**
+ * Round an amount cleanly to its currency's decimal precision using integer minor units.
+ */
+export function roundCurrencyAmount(amount: number, currencyCode: string): number {
+  return fromMinorUnits(toMinorUnits(amount, currencyCode), currencyCode);
+}
+
+/**
+ * Synchronously convert an amount between any two ISO 4217 currencies using minor-unit safe math.
+ */
+export function convertAmountWithRates(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  rates: Record<string, number>
+): {
+  displayAmount: number;
+  rate: number;
+  isConverted: boolean;
+  amountUSD: number;
+} {
+  const fromUpper = (fromCurrency || 'USD').toUpperCase();
+  const toUpper = (toCurrency || 'USD').toUpperCase();
+
+  const fromPerUSD = rates[fromUpper] && rates[fromUpper] > 0 ? rates[fromUpper] : 1.0;
+  const toPerUSD = rates[toUpper] && rates[toUpper] > 0 ? rates[toUpper] : 1.0;
+
+  // Convert source amount into USD minor units (cents) first, then to target minor units
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  const amountUSDCents = Math.round((safeAmount / fromPerUSD) * 100);
+  const amountUSD = fromMinorUnits(amountUSDCents, 'USD');
+
+  if (fromUpper === toUpper) {
+    return {
+      displayAmount: roundCurrencyAmount(safeAmount, toUpper),
+      rate: 1.0,
+      isConverted: false,
+      amountUSD,
+    };
+  }
+
+  const crossRate = toPerUSD / fromPerUSD;
+  const targetFactor = Math.pow(10, getCurrencyDecimals(toUpper));
+  const targetMinor = Math.round(safeAmount * crossRate * targetFactor);
+  const displayAmount = fromMinorUnits(targetMinor, toUpper);
+
+  return {
+    displayAmount,
+    rate: crossRate,
+    isConverted: true,
+    amountUSD,
+  };
+}
+
+/**
+ * Asynchronously convert between any two ISO 4217 currencies with live/cached rates.
+ */
+export async function convertCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string
+) {
+  const ratesData = await getExchangeRates();
+  const converted = convertAmountWithRates(amount, fromCurrency, toCurrency, ratesData.rates);
+  return {
+    ...converted,
+    timestamp: ratesData.timestamp,
+    source: ratesData.source,
+  };
+}
+
+/**
  * Convert USD amount to a target currency.
  */
 export async function convertFromUSD(amountUSD: number, targetCurrency: string) {
   const ratesData = await getExchangeRates();
-  const upper = targetCurrency.toUpperCase();
-  const rate = ratesData.rates[upper] || 1.0;
-  const isZeroDecimal = (ZERO_DECIMAL_CURRENCIES as readonly string[]).includes(upper);
-
-  let rawDisplayAmount = amountUSD * rate;
-  let displayAmount = isZeroDecimal ? Math.round(rawDisplayAmount) : Math.round(rawDisplayAmount * 100) / 100;
+  const converted = convertAmountWithRates(amountUSD, 'USD', targetCurrency, ratesData.rates);
 
   return {
-    displayAmount,
-    rate,
+    displayAmount: converted.displayAmount,
+    rate: converted.rate,
     timestamp: ratesData.timestamp,
     source: ratesData.source,
   };
@@ -118,16 +210,11 @@ export async function convertFromUSD(amountUSD: number, targetCurrency: string) 
  * Synchronously convert USD amount using a provided rates map.
  */
 export function convertWithRates(amountUSD: number, targetCurrency: string, rates: Record<string, number>) {
-  const upper = targetCurrency.toUpperCase();
-  const rate = rates[upper] || (upper === 'USD' ? 1.0 : 1.0);
-  const isZeroDecimal = (ZERO_DECIMAL_CURRENCIES as readonly string[]).includes(upper);
-
-  let rawDisplayAmount = amountUSD * rate;
-  let displayAmount = isZeroDecimal ? Math.round(rawDisplayAmount) : Math.round(rawDisplayAmount * 100) / 100;
+  const converted = convertAmountWithRates(amountUSD, 'USD', targetCurrency, rates);
 
   return {
-    displayAmount,
-    rate,
+    displayAmount: converted.displayAmount,
+    rate: converted.rate,
   };
 }
 
@@ -135,19 +222,29 @@ export function convertWithRates(amountUSD: number, targetCurrency: string, rate
  * Format currency amount with appropriate locale, symbol, and decimals.
  */
 export function formatCurrency(amount: number, currencyCode: string, locale?: string): string {
-  const upper = currencyCode.toUpperCase();
-  const isZeroDecimal = (ZERO_DECIMAL_CURRENCIES as readonly string[]).includes(upper);
+  const upper = (currencyCode || 'USD').toUpperCase();
+  const decimals = getCurrencyDecimals(upper);
 
-  const targetLocale = locale || (upper === 'INR' ? 'en-IN' : upper === 'EUR' ? 'de-DE' : upper === 'GBP' ? 'en-GB' : upper === 'JPY' ? 'ja-JP' : 'en-US');
+  const targetLocale =
+    locale ||
+    (upper === 'INR'
+      ? 'en-IN'
+      : upper === 'EUR'
+      ? 'de-DE'
+      : upper === 'GBP'
+      ? 'en-GB'
+      : upper === 'JPY'
+      ? 'ja-JP'
+      : 'en-US');
 
   try {
     return new Intl.NumberFormat(targetLocale, {
       style: 'currency',
       currency: upper,
-      minimumFractionDigits: isZeroDecimal ? 0 : 2,
-      maximumFractionDigits: isZeroDecimal ? 0 : 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(amount);
   } catch {
-    return `${upper} ${amount.toFixed(isZeroDecimal ? 0 : 2)}`;
+    return `${upper} ${amount.toFixed(decimals)}`;
   }
 }

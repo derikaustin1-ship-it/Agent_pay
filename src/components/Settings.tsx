@@ -109,7 +109,7 @@ export default function Settings() {
             <div>
               <span className="font-bold">India Domestic Restriction Notice:</span>
               <p className="mt-0.5 text-amber-800 leading-relaxed">
-                Under Reserve Bank of India (RBI) regulations, domestic merchant transactions between Indian PayPal accounts are not permitted. PayPal Sandbox orders in AgentPay will process in USD.
+                Under Reserve Bank of India (RBI) regulations, domestic merchant transactions between Indian PayPal accounts are not permitted. Orders in AgentPay will process in USD equivalent.
               </p>
             </div>
           </div>
@@ -145,18 +145,18 @@ export default function Settings() {
             <ShieldCheckIcon className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-900">Security & PayPal Sandbox</h3>
+            <h3 className="text-sm sm:text-base font-bold text-slate-900">Security & Payment Integration</h3>
             <p className="text-xs text-slate-500">
-              Transactions occur strictly within PayPal’s developer test sandbox environment.
+              Transactions are processed with direct server-side encryption and OAuth 2.0 authorization.
             </p>
           </div>
         </div>
 
         <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2 text-xs text-slate-600">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-slate-700">Environment</span>
+            <span className="font-medium text-slate-700">Payment Gateway</span>
             <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              PayPal Sandbox (REST v2)
+              PayPal Secure REST v2
             </span>
           </div>
           <div className="flex items-center justify-between">
